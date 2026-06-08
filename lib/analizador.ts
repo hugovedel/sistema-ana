@@ -101,7 +101,7 @@ export async function analizarConGPT(datos: any, sentimiento: any, noticias: str
 export async function analizarConGemini(datos: any, sentimiento: any, noticias: string): Promise<VeredictoIA | null> {
   try {
     const prompt = construirPrompt(datos, sentimiento, noticias);
-    const modelo = gemini.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const modelo = gemini.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const resultado = await modelo.generateContent(prompt);
     const texto = resultado.response.text().trim();
     const json = texto.replace(/```json|```/g, '').trim();
