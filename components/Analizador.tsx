@@ -107,10 +107,16 @@ function TarjetaResultado({ r }: { r: Resultado }) {
           <div className="bg-[#f9f9f8] rounded-lg p-3">
             <div className="text-xs text-[#6b7280] mb-0.5">Precio objetivo</div>
             <div className="font-mono font-semibold text-emerald-600">${analisis.final.precioObjetivo.toFixed(2)}</div>
+            <div className="font-mono text-xs text-emerald-500 mt-0.5">
+              +{(((analisis.final.precioObjetivo - (r.precioActual || 0)) / (r.precioActual || 1)) * 100).toFixed(1)}%
+            </div>
           </div>
           <div className="bg-[#f9f9f8] rounded-lg p-3">
             <div className="text-xs text-[#6b7280] mb-0.5">Stop loss</div>
             <div className="font-mono font-semibold text-red-500">${analisis.final.stopLoss.toFixed(2)}</div>
+            <div className="font-mono text-xs text-red-400 mt-0.5">
+              {(((analisis.final.stopLoss - (r.precioActual || 0)) / (r.precioActual || 1)) * 100).toFixed(1)}%
+            </div>
           </div>
         </div>
 
