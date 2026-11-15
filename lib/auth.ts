@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getSupabase } from './supabase';
+import { getSupabase, describirUrlSupabase } from './supabase';
 
 // Verifica el token de sesión (Authorization: Bearer ...) contra la tabla `sesiones`.
 // Usa la misma consulta que GET /api/auth.
@@ -18,7 +18,7 @@ export async function verificarSesion(req: NextRequest): Promise<boolean> {
       .gt('expira_en', new Date().toISOString())
       .single();
 
-    if (error) console.error('verificarSesion: error de Supabase:', error.message);
+    if (error) console.error('verificarSesion: error de Supabase:', error.message, '|', describirUrlSupabase());
     return !!data;
   } catch (e) {
     console.error('verificarSesion: excepción:', e);
