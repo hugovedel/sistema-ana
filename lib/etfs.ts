@@ -9,7 +9,7 @@ export interface Tema {
 export const TEMAS: Tema[] = [
   { id: 'nasdaq', nombre: 'Nasdaq 100', alcista: 'TQQQ', inverso: 'SQQQ', apalancamiento: 3 },
   { id: 'semis', nombre: 'Semiconductores', alcista: 'SOXL', inverso: 'SOXS', apalancamiento: 3 },
-  { id: 'energia', nombre: 'Energía (petróleo y gas)', alcista: 'GUSH', inverso: 'DRIP', apalancamiento: 2 },
+  { id: 'energia', nombre: 'Energía', alcista: 'ERX', inverso: 'ERY', apalancamiento: 2 },
   { id: 'smallcaps', nombre: 'Small caps (Russell 2000)', alcista: 'TNA', inverso: 'TZA', apalancamiento: 3 },
   { id: 'biotech', nombre: 'Biotecnología', alcista: 'LABU', inverso: 'LABD', apalancamiento: 3 }
 ];
