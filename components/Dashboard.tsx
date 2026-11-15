@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Inicio from './Inicio';
 import Analizador from './Analizador';
 import Historial from './Historial';
 
 export default function Dashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
-  const [vista, setVista] = useState<'analizar' | 'historial'>('analizar');
+  const [vista, setVista] = useState<'inicio' | 'analizar' | 'historial'>('inicio');
 
   return (
     <div className="min-h-screen bg-[#f9f9f8]">
@@ -15,6 +16,16 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
             <h1 className="text-base font-semibold text-[#111827] tracking-tight">SistemaAna</h1>
             <nav className="flex gap-1">
               <button
+                onClick={() => setVista('inicio')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  vista === 'inicio'
+                    ? 'bg-[#f3f4f6] text-[#111827] font-medium'
+                    : 'text-[#6b7280] hover:text-[#111827]'
+                }`}
+              >
+                Inicio
+              </button>
+              <button
                 onClick={() => setVista('analizar')}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                   vista === 'analizar'
@@ -22,7 +33,7 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
                     : 'text-[#6b7280] hover:text-[#111827]'
                 }`}
               >
-                Analizar
+                Acciones
               </button>
               <button
                 onClick={() => setVista('historial')}
@@ -45,7 +56,9 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-6 py-8">
-        {vista === 'analizar' ? <Analizador token={token} /> : <Historial token={token} />}
+        {vista === 'inicio' && <Inicio token={token} />}
+        {vista === 'analizar' && <Analizador token={token} />}
+        {vista === 'historial' && <Historial token={token} />}
       </main>
     </div>
   );
