@@ -20,3 +20,21 @@ create table if not exists decisiones_ia (
 
 -- Si la tabla ya existía sin la columna modelo:
 -- alter table decisiones_ia add column if not exists modelo varchar(60);
+
+-- Diario de operaciones reales (lo que compras y cobras)
+create table if not exists diario (
+  id uuid primary key default gen_random_uuid(),
+  fecha_compra date not null,
+  etf varchar(10) not null,
+  monto_compra decimal(10,2) not null,
+  fecha_venta date,
+  monto_venta decimal(10,2),
+  estado varchar(10) not null default 'abierta',   -- abierta | cerrada
+  mantuve boolean not null default false,          -- true si no vendiste en la apertura siguiente
+  decision varchar(20) not null default 'mia',     -- segui_veredicto | segui_ia | mia
+  ia_seguida varchar(20),
+  comisiones decimal(8,2) not null default 0,
+  notas text,
+  creado_en timestamp default now()
+);
+alter table diario enable row level security;

@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Inicio from './Inicio';
 import Analizador from './Analizador';
 import Historial from './Historial';
+import Diario from './Diario';
 
 export default function Dashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
-  const [vista, setVista] = useState<'inicio' | 'analizar' | 'historial'>('inicio');
+  const [vista, setVista] = useState<'inicio' | 'analizar' | 'diario' | 'historial'>('inicio');
 
   return (
     <div className="min-h-screen bg-[#f9f9f8]">
@@ -36,6 +37,16 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
                 Acciones
               </button>
               <button
+                onClick={() => setVista('diario')}
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  vista === 'diario'
+                    ? 'bg-[#f3f4f6] text-[#111827] font-medium'
+                    : 'text-[#6b7280] hover:text-[#111827]'
+                }`}
+              >
+                Diario
+              </button>
+              <button
                 onClick={() => setVista('historial')}
                 className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                   vista === 'historial'
@@ -58,6 +69,7 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
       <main className="max-w-5xl mx-auto px-6 py-8">
         {vista === 'inicio' && <Inicio token={token} />}
         {vista === 'analizar' && <Analizador token={token} />}
+        {vista === 'diario' && <Diario token={token} />}
         {vista === 'historial' && <Historial token={token} />}
       </main>
     </div>
