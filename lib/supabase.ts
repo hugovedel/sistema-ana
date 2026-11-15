@@ -6,8 +6,12 @@ let cliente: any = null;
 
 export function getSupabase(): any {
   if (!cliente) {
+    // SUPABASE_URL tiene prioridad; se limpian espacios y diagonales finales
+    const url = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '')
+      .trim()
+      .replace(/\/+$/, '');
     cliente = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      url,
       process.env.SUPABASE_SERVICE_KEY!
     );
   }
