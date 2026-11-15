@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import TarjetaDiagnostico, { Diagnostico } from './TarjetaDiagnostico';
+import { pedirDiagnostico } from '@/lib/cliente';
 
 export default function Analizador({ token }: { token: string }) {
   const [tickers, setTickers] = useState('');
@@ -20,13 +21,9 @@ export default function Analizador({ token }: { token: string }) {
 
     for (const t of lista) {
       try {
-        const r = await fetch('/api/diagnosticar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
-          body: JSON.stringify({ ticker: t })
-        });
-        const data = await r.json();
-        setResultados(prev => [...prev, !r.ok || data.error ? ({ tema: t, titulo: t, error: data.error || 'Error' } as Diagnostico) : data]);
+        const res = await pedirDiagnostico(token, { ticker: t });
+        const data: any = res.data;
+        setResultados(prev => [...prev, !res.ok || data.error ? ({ tema: t, titulo: t, error: data.error || 'Error' } as Diagnostico) : data]);
       } catch {
         setResultados(prev => [...prev, { tema: t, titulo: t, error: 'Error de conexión' } as Diagnostico]);
       }

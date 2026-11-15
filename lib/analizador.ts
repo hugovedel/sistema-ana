@@ -125,15 +125,33 @@ ${formato}`;
   return { prompt, permitidas };
 }
 
+// Si un modelo no acepta el parámetro `temperature`, se reintenta sin él.
+function rechazaTemperatura(e: any): boolean {
+  return /temperature/i.test(String(e?.message || ''));
+}
+
+async function conTemperatura<T>(fn: (conTemp: boolean) => Promise<T>): Promise<T> {
+  try {
+    return await fn(true);
+  } catch (e) {
+    if (!rechazaTemperatura(e)) throw e;
+    return await fn(false);
+  }
+}
+
+// Temperatura 0 para que las respuestas sean lo más repetibles posible.
 async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: number; tout: number }> {
   if (ia === 'claude') {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const m = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
-      max_tokens: 600,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    const bloque = m.content.find(b => b.type === 'text') as any;
+    const m: any = await conTemperatura(conTemp =>
+      anthropic.messages.create({
+        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+        max_tokens: 600,
+        ...(conTemp ? { temperature: 0 } : {}),
+        messages: [{ role: 'user', content: prompt }]
+      })
+    );
+    const bloque = m.content.find((b: any) => b.type === 'text');
     return { texto: bloque?.text || '', tin: m.usage.input_tokens, tout: m.usage.output_tokens };
   }
 
@@ -142,11 +160,14 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
       ? new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: 'https://api.x.ai/v1' })
       : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const modelo = ia === 'grok' ? (process.env.XAI_MODEL || 'grok-4') : 'gpt-4o';
-    const r = await cliente.chat.completions.create({
-      model: modelo,
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    });
+    const r: any = await conTemperatura(conTemp =>
+      cliente.chat.completions.create({
+        model: modelo,
+        max_tokens: 1000,
+        ...(conTemp ? { temperature: 0 } : {}),
+        messages: [{ role: 'user', content: prompt }]
+      })
+    );
     return {
       texto: r.choices[0]?.message?.content || '',
       tin: r.usage?.prompt_tokens || 0,
@@ -155,8 +176,14 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-  const modelo = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const r = await modelo.generateContent(prompt);
+  const r: any = await conTemperatura((conTemp: boolean) =>
+    genAI
+      .getGenerativeModel({
+        model: 'gemini-2.5-flash',
+        ...(conTemp ? { generationConfig: { temperature: 0 } } : {})
+      })
+      .generateContent(prompt)
+  );
   const uso: any = r.response.usageMetadata;
   return {
     texto: r.response.text(),

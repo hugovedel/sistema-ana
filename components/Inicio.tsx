@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { TEMAS } from '@/lib/etfs';
 import { estadoMercado, formatearCuenta } from '@/lib/reloj';
 import TarjetaDiagnostico, { Diagnostico } from './TarjetaDiagnostico';
+import { pedirDiagnostico } from '@/lib/cliente';
 
 interface DatosETF {
   precio: number;
@@ -81,13 +82,9 @@ export default function Inicio({ token }: { token: string }) {
     for (const t of TEMAS) {
       setProgreso(`Consultando a las IAs: ${t.nombre}...`);
       try {
-        const r = await fetch('/api/diagnosticar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', authorization: `Bearer ${token}` },
-          body: JSON.stringify({ tema: t.id })
-        });
-        const data = await r.json();
-        if (!r.ok || data.error) {
+        const res = await pedirDiagnostico(token, { tema: t.id });
+        const data: any = res.data;
+        if (!res.ok || data.error) {
           setResultados(prev => [...prev, { tema: t.id, titulo: t.nombre, error: data.error || 'Error' } as Diagnostico]);
         } else {
           setResultados(prev => [...prev, data]);

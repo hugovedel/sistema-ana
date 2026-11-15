@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { tema: temaId, ticker } = await req.json();
+    const { tema: temaId, ticker, forzar } = await req.json();
     const supabase = getSupabase();
 
     const tema = temaId ? buscarTema(String(temaId)) : undefined;
@@ -39,6 +39,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tema o ticker inválido' }, { status: 400 });
     }
 
+    // Un solo diagnóstico por día y tema, para no sesgar la medición.
+    const fecha = fechaChicago();
+    const { data: previo } = await supabase
+      .from('decisiones_ia')
+      .select('id')
+      .eq('fecha', fecha)
+      .eq('tema', idTema)
+      .limit(1);
+    if (previo && previo.length > 0 && !forzar) {
+      return NextResponse.json(
+        { error: 'Ya hay un diagnóstico de hoy para este tema', yaExiste: true, titulo },
+        { status: 409 }
+      );
+    }
+
     const [datos, sentimiento] = await Promise.all([
       Promise.all(tickers.map(t => obtenerDatosAccion(t))),
       obtenerSentimientoMercado()
@@ -51,7 +66,6 @@ export async function POST(req: NextRequest) {
     const respuestas = await consultarTodas(prompt, permitidas);
     const consenso = veredictoConsenso(respuestas);
 
-    const fecha = fechaChicago();
     const etfDe = (d: string) =>
       d === 'no_operar' ? null : tema ? (d === 'alcista' ? tema.alcista : tema.inverso) : tickers[0];
 
