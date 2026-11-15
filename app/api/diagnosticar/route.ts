@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
         tema: idTema,
         ia: r.ia,
         modo: r.modo,
+        modelo: r.modelo,
         decision: r.decision,
         etf_elegido: etfDe(r.decision),
         confianza: r.confianza,
@@ -89,7 +90,14 @@ export async function POST(req: NextRequest) {
     if (filas.length > 0) {
       // Un re-diagnóstico del mismo día reemplaza al anterior que siga pendiente
       await supabase.from('decisiones_ia').delete().eq('fecha', fecha).eq('tema', idTema).eq('resultado', 'pendiente');
-      const { error } = await supabase.from('decisiones_ia').insert(filas);
+      let { error } = await supabase.from('decisiones_ia').insert(filas);
+      if (error && /modelo/i.test(String(error.message))) {
+        // La columna `modelo` aún no existe en Supabase: se guarda sin ella.
+        console.error('Falta la columna modelo en decisiones_ia; guardando sin ella');
+        ({ error } = await supabase
+          .from('decisiones_ia')
+          .insert(filas.map(({ modelo, ...resto }: any) => resto)));
+      }
       if (error) console.error('Error guardando decisiones:', error);
     }
 

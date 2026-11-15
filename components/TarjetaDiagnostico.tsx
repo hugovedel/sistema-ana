@@ -5,6 +5,7 @@ import { useState } from 'react';
 export interface IAResp {
   ia: string;
   nombre: string;
+  modelo?: string;
   modo: 'activa' | 'sombra';
   decision: 'alcista' | 'inverso' | 'no_operar';
   confianza: number;
@@ -108,7 +109,7 @@ export default function TarjetaDiagnostico({ d }: { d: Diagnostico }) {
           {d.ias.map(r => (
             <div key={r.ia}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium text-[#374151]">{r.nombre}</span>
+                <span className="text-xs font-medium text-[#374151]">{r.nombre}{r.modelo ? ` · ${r.modelo}` : ''}</span>
                 <span className="font-mono text-xs text-[#9ca3af]">
                   {r.tokens_in}+{r.tokens_out} tokens · ${r.costo_usd.toFixed(4)}
                 </span>

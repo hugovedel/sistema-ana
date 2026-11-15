@@ -5,6 +5,7 @@ create table if not exists decisiones_ia (
   tema varchar(30) not null,           -- id del tema (nasdaq, semis...) o ticker en modo acción
   ia varchar(20) not null,             -- claude | gpt | gemini | grok
   modo varchar(10) not null,           -- activa | sombra
+  modelo varchar(60),                  -- modelo exacto que dio la decisión
   decision varchar(12) not null,       -- alcista | inverso | no_operar
   etf_elegido varchar(10),
   confianza decimal,
@@ -16,3 +17,6 @@ create table if not exists decisiones_ia (
   rendimiento_pct decimal(6,2),
   creado_en timestamp default now()
 );
+
+-- Si la tabla ya existía sin la columna modelo:
+-- alter table decisiones_ia add column if not exists modelo varchar(60);

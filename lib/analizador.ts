@@ -24,6 +24,7 @@ export const IAS_CONFIG: IAConfig[] = [
 export interface RespuestaIA {
   ia: IAId;
   nombre: string;
+  modelo: string;
   modo: 'activa' | 'sombra';
   decision: Decision;
   confianza: number;
@@ -125,6 +126,15 @@ ${formato}`;
   return { prompt, permitidas };
 }
 
+// Modelo exacto de cada IA. Se puede cambiar con variables de entorno en Vercel.
+// Importante: no cambiarlo a mitad del experimento, o el marcador mezcla modelos.
+export function modeloDe(ia: IAId): string {
+  if (ia === 'claude') return process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
+  if (ia === 'gpt') return process.env.OPENAI_MODEL || 'gpt-4o';
+  if (ia === 'gemini') return process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  return process.env.XAI_MODEL || 'grok-4';
+}
+
 // Si un modelo no acepta el parámetro `temperature`, se reintenta sin él.
 function rechazaTemperatura(e: any): boolean {
   return /temperature/i.test(String(e?.message || ''));
@@ -145,7 +155,7 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const m: any = await conTemperatura(conTemp =>
       anthropic.messages.create({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+        model: modeloDe('claude'),
         max_tokens: 600,
         ...(conTemp ? { temperature: 0 } : {}),
         messages: [{ role: 'user', content: prompt }]
@@ -159,7 +169,7 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
     const cliente = ia === 'grok'
       ? new OpenAI({ apiKey: process.env.XAI_API_KEY, baseURL: 'https://api.x.ai/v1' })
       : new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const modelo = ia === 'grok' ? (process.env.XAI_MODEL || 'grok-4') : 'gpt-4o';
+    const modelo = modeloDe(ia);
     const r: any = await conTemperatura(conTemp =>
       cliente.chat.completions.create({
         model: modelo,
@@ -179,7 +189,7 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
   const r: any = await conTemperatura((conTemp: boolean) =>
     genAI
       .getGenerativeModel({
-        model: 'gemini-2.5-flash',
+        model: modeloDe('gemini'),
         ...(conTemp ? { generationConfig: { temperature: 0 } } : {})
       })
       .generateContent(prompt)
@@ -193,7 +203,7 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
 }
 
 async function consultar(cfg: IAConfig, prompt: string, permitidas: Decision[]): Promise<RespuestaIA> {
-  const base = { ia: cfg.id, nombre: cfg.nombre, modo: cfg.modo };
+  const base = { ia: cfg.id, nombre: cfg.nombre, modo: cfg.modo, modelo: modeloDe(cfg.id) };
   try {
     const { texto, tin, tout } = await llamar(cfg.id, prompt);
     const v = validar(extraerJSON(texto), permitidas);
