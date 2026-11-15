@@ -129,7 +129,7 @@ async function llamar(ia: IAId, prompt: string): Promise<{ texto: string; tin: n
   if (ia === 'claude') {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const m = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
       max_tokens: 600,
       messages: [{ role: 'user', content: prompt }]
     });
