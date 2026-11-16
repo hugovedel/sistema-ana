@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
+import { getSupabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,14 +9,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Contraseña incorrecta' }, { status: 401 });
     }
 
+    const supabase = getSupabase();
     const token = crypto.randomUUID();
     const expira = new Date();
     expira.setHours(expira.getHours() + 24);
 
-    await supabase.from('sesiones').insert({
+    const { error } = await supabase.from('sesiones').insert({
       token,
       expira_en: expira.toISOString()
     });
+    if (error) {
+      console.error('Error guardando sesión:', error.message);
+      return NextResponse.json({ error: 'No se pudo guardar la sesión' }, { status: 500 });
+    }
 
     return NextResponse.json({ token });
   } catch (e) {
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
+    const supabase = getSupabase();
     const token = req.headers.get('authorization')?.replace('Bearer ', '');
     if (!token) return NextResponse.json({ valid: false }, { status: 401 });
 
