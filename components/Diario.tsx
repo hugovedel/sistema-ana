@@ -20,6 +20,9 @@ interface Fila {
   ia_seguida: string | null;
   comisiones: number;
   notas: string | null;
+  precio_ref?: number | null;
+  precio_compra?: number | null;
+  precio_venta?: number | null;
 }
 
 const TXT_DECISION: Record<string, string> = {
@@ -72,10 +75,12 @@ export default function Diario({ token }: { token: string }) {
   const [decision, setDecision] = useState('segui_veredicto');
   const [ia, setIa] = useState('claude');
   const [comisiones, setComisiones] = useState('');
+  const [pRef, setPRef] = useState('');
+  const [pCompra, setPCompra] = useState('');
   const [notas, setNotas] = useState('');
 
   // Formulario de venta por fila
-  const [venta, setVenta] = useState<Record<string, { monto: string; fecha: string }>>({});
+  const [venta, setVenta] = useState<Record<string, { monto: string; fecha: string; precio?: string }>>({});
 
   const h = { 'Content-Type': 'application/json', authorization: `Bearer ${token}` };
 
@@ -89,9 +94,14 @@ export default function Diario({ token }: { token: string }) {
   };
   useEffect(() => { cargar(); }, []);
 
-  const enviar = async (metodo: string, cuerpo: object, url = '/api/diario') => {
+  const enviar = async (metodo: string, cuerpo: object, url = '/api/diario'): Promise<boolean> => {
     const r = await fetch(url, { method: metodo, headers: h, body: metodo === 'DELETE' ? undefined : JSON.stringify(cuerpo) });
     const d = await r.json();
+    if (d.yaAbierta) {
+      if (window.confirm(`${d.error}\n\n¿Registrarla de todos modos?`)) return enviar(metodo, { ...cuerpo, forzar: true }, url);
+      setError('');
+      return false;
+    }
     if (d.error) { setError(d.error); return false; }
     setError('');
     await cargar();
@@ -99,15 +109,17 @@ export default function Diario({ token }: { token: string }) {
   };
 
   const guardarCompra = async () => {
-    const ok = await enviar('POST', {
-      fecha_compra: fecha, etf, monto_compra: monto, decision, ia_seguida: ia, comisiones, notas
-    });
-    if (ok) { setEtf(''); setMonto(''); setComisiones(''); setNotas(''); }
+    const cuerpo = {
+      fecha_compra: fecha, etf, monto_compra: monto, decision, ia_seguida: ia, comisiones, notas,
+      precio_ref: pRef, precio_compra: pCompra
+    };
+    const ok = await enviar('POST', cuerpo);
+    if (ok) { setEtf(''); setMonto(''); setComisiones(''); setNotas(''); setPRef(''); setPCompra(''); }
   };
 
   const registrarVenta = async (f: Fila) => {
     const v = venta[f.id] || { monto: '', fecha: hoy };
-    await enviar('PATCH', { id: f.id, monto_venta: v.monto, fecha_venta: v.fecha || hoy });
+    await enviar('PATCH', { id: f.id, monto_venta: v.monto, fecha_venta: v.fecha || hoy, precio_venta: v.precio });
   };
 
   const borrar = async (f: Fila) => {
@@ -162,6 +174,8 @@ export default function Diario({ token }: { token: string }) {
           <div><div className="text-xs text-[#6b7280] mb-1">ETF</div><input list="etfs" className={`${input} font-mono uppercase`} value={etf} onChange={e => setEtf(e.target.value)} placeholder="TQQQ" /><datalist id="etfs">{TODOS_LOS_ETFS.map(t => <option key={t} value={t} />)}</datalist></div>
           <div><div className="text-xs text-[#6b7280] mb-1">Dólares invertidos</div><input type="number" min="0" step="0.01" className={input} value={monto} onChange={e => setMonto(e.target.value)} placeholder="100" /></div>
           <div><div className="text-xs text-[#6b7280] mb-1">Comisiones (opcional)</div><input type="number" min="0" step="0.01" className={input} value={comisiones} onChange={e => setComisiones(e.target.value)} /></div>
+          <div><div className="text-xs text-[#6b7280] mb-1">Precio de referencia (opcional)</div><input type="number" min="0" step="0.0001" className={input} value={pRef} onChange={e => setPRef(e.target.value)} placeholder="el del diagnóstico" /></div>
+          <div><div className="text-xs text-[#6b7280] mb-1">Precio real de compra (opcional)</div><input type="number" min="0" step="0.0001" className={input} value={pCompra} onChange={e => setPCompra(e.target.value)} /></div>
           <div className="md:col-span-2"><div className="text-xs text-[#6b7280] mb-1">¿Qué decisión tomaste?</div>
             <select className={input} value={decision} onChange={e => setDecision(e.target.value)}>
               <option value="segui_veredicto">Seguí el veredicto de las IAs</option>
@@ -202,11 +216,12 @@ export default function Diario({ token }: { token: string }) {
                     {usd(Number(f.monto_compra))}{f.monto_venta !== null && <> → {usd(Number(f.monto_venta))} <span className={g >= 0 ? 'text-emerald-600' : 'text-red-500'}>({usd(g)})</span></>}
                   </div>
                 </div>
-                <div className="text-xs text-[#6b7280] mt-1">{TXT_DECISION[f.decision] || f.decision}{f.ia_seguida ? ` (${f.ia_seguida})` : ''}{Number(f.comisiones) > 0 ? ` · comisiones ${usd(Number(f.comisiones))}` : ''}{f.notas ? ` · ${f.notas}` : ''}</div>
+                <div className="text-xs text-[#6b7280] mt-1">{TXT_DECISION[f.decision] || f.decision}{f.ia_seguida ? ` (${f.ia_seguida})` : ''}{Number(f.comisiones) > 0 ? ` · comisiones ${usd(Number(f.comisiones))}` : ''}{f.notas ? ` · ${f.notas}` : ''}{f.precio_ref && f.precio_compra ? ` · slippage de compra ${(((Number(f.precio_compra) - Number(f.precio_ref)) / Number(f.precio_ref)) * 100).toFixed(2)}% (ref ${f.precio_ref} → real ${f.precio_compra})` : ''}{f.precio_venta ? ` · vendido a ${f.precio_venta}` : ''}</div>
                 {f.estado === 'abierta' && (
                   <div className="flex flex-wrap items-end gap-2 mt-3">
                     <div><div className="text-xs text-[#6b7280] mb-1">Dólares cobrados</div><input type="number" min="0" step="0.01" className={`${input} w-32`} value={v.monto} onChange={e => setVenta({ ...venta, [f.id]: { ...v, monto: e.target.value } })} /></div>
                     <div><div className="text-xs text-[#6b7280] mb-1">Fecha de venta</div><input type="date" className={`${input} w-40`} value={v.fecha} onChange={e => setVenta({ ...venta, [f.id]: { ...v, fecha: e.target.value } })} /></div>
+                    <div><div className="text-xs text-[#6b7280] mb-1">Precio de venta</div><input type="number" min="0" step="0.0001" className={`${input} w-28`} value={v.precio || ''} onChange={e => setVenta({ ...venta, [f.id]: { ...v, precio: e.target.value } })} /></div>
                     <button onClick={() => registrarVenta(f)} disabled={v.monto === ''} className="px-3 py-2 text-sm font-medium border border-[#e5e7eb] rounded-lg hover:bg-[#f9f9f8] disabled:opacity-50">Registrar venta</button>
                     {!f.mantuve && <button onClick={() => enviar('PATCH', { id: f.id, mantuve: true })} className="px-3 py-2 text-sm border border-[#e5e7eb] rounded-lg hover:bg-[#f9f9f8]">Marcar: mantuve</button>}
                   </div>

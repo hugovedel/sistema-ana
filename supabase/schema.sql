@@ -35,8 +35,16 @@ create table if not exists diario (
   mantuve boolean not null default false,          -- true si no vendiste en la apertura siguiente
   decision varchar(20) not null default 'mia',     -- segui_veredicto | segui_ia | mia
   ia_seguida varchar(20),
+  precio_ref decimal(10,4),                        -- precio del ETF al diagnóstico (referencia)
+  precio_compra decimal(10,4),                     -- precio real al que compraste
+  precio_venta decimal(10,4),                      -- precio real al que vendiste
   comisiones decimal(8,2) not null default 0,
   notas text,
   creado_en timestamp default now()
 );
 alter table diario enable row level security;
+
+-- Si la tabla diario ya existía:
+-- alter table diario add column if not exists precio_ref decimal(10,4);
+-- alter table diario add column if not exists precio_compra decimal(10,4);
+-- alter table diario add column if not exists precio_venta decimal(10,4);

@@ -35,7 +35,19 @@ export async function POST(req: NextRequest) {
   const decision = DECISIONES.includes(b.decision) ? b.decision : 'mia';
   const ia = decision === 'segui_ia' && IAS.includes(b.ia_seguida) ? b.ia_seguida : null;
 
-  const { error } = await getSupabase().from('diario').insert({
+  const sb = getSupabase();
+  // No promediar a la baja: si ya hay una compra abierta del mismo ETF, pide confirmación.
+  if (!b.forzar) {
+    const { data: abiertas } = await sb.from('diario').select('id').eq('etf', etf).eq('estado', 'abierta').limit(1);
+    if (abiertas && abiertas.length > 0) {
+      return NextResponse.json(
+        { error: `Ya tienes una compra abierta de ${etf}. Comprar más para promediar es una mala práctica.`, yaAbierta: true },
+        { status: 409 }
+      );
+    }
+  }
+  const num = (v: any) => (v !== undefined && v !== null && v !== '' && isFinite(Number(v)) && Number(v) > 0 ? Number(v) : null);
+  const fila: Record<string, any> = {
     fecha_compra: b.fecha_compra,
     etf,
     monto_compra: monto,
@@ -44,8 +56,16 @@ export async function POST(req: NextRequest) {
     comisiones: Number(b.comisiones) > 0 ? Number(b.comisiones) : 0,
     notas: String(b.notas || '').slice(0, 500) || null,
     estado: 'abierta',
-    mantuve: false
-  });
+    mantuve: false,
+    precio_ref: num(b.precio_ref),
+    precio_compra: num(b.precio_compra)
+  };
+  let { error } = await sb.from('diario').insert(fila);
+  if (error && /precio_/i.test(String(error.message))) {
+    // Faltan las columnas de precios en Supabase: se guarda sin ellas.
+    const { precio_ref, precio_compra, ...resto } = fila;
+    ({ error } = await sb.from('diario').insert(resto));
+  }
   if (error) {
     console.error('diario POST:', error.message);
     return NextResponse.json({ error: 'No se pudo guardar la operación' }, { status: 500 });
@@ -67,12 +87,17 @@ export async function PATCH(req: NextRequest) {
     cambios.monto_venta = mv;
     cambios.fecha_venta = b.fecha_venta;
     cambios.estado = 'cerrada';
+    if (Number(b.precio_venta) > 0) cambios.precio_venta = Number(b.precio_venta);
   }
   if (b.comisiones !== undefined && Number(b.comisiones) >= 0) cambios.comisiones = Number(b.comisiones);
   if (b.notas !== undefined) cambios.notas = String(b.notas || '').slice(0, 500) || null;
   if (Object.keys(cambios).length === 0) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
 
-  const { error } = await getSupabase().from('diario').update(cambios).eq('id', b.id);
+  let { error } = await getSupabase().from('diario').update(cambios).eq('id', b.id);
+  if (error && /precio_/i.test(String(error.message))) {
+    const { precio_venta, ...resto } = cambios;
+    ({ error } = await getSupabase().from('diario').update(resto).eq('id', b.id));
+  }
   if (error) {
     console.error('diario PATCH:', error.message);
     return NextResponse.json({ error: 'No se pudo actualizar' }, { status: 500 });
