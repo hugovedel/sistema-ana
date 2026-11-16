@@ -8,6 +8,7 @@ create table if not exists decisiones_ia (
   modelo varchar(60),                  -- modelo exacto que dio la decisión
   decision varchar(12) not null,       -- alcista | inverso | no_operar
   etf_elegido varchar(10),
+  precio_ref decimal(10,4),            -- precio del ETF elegido al momento del diagnóstico
   confianza decimal,
   razon text,
   tokens_in int,
@@ -20,6 +21,7 @@ create table if not exists decisiones_ia (
 
 -- Si la tabla ya existía sin la columna modelo:
 -- alter table decisiones_ia add column if not exists modelo varchar(60);
+-- alter table decisiones_ia add column if not exists precio_ref decimal(10,4);
 
 -- Diario de operaciones reales (lo que compras y cobras)
 create table if not exists diario (

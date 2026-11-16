@@ -5,6 +5,7 @@ import { buscarTema } from '@/lib/etfs';
 import { obtenerDatosAccion, obtenerSentimientoMercado } from '@/lib/mercado';
 import { construirPrompt, consultarTodas, veredictoConsenso } from '@/lib/analizador';
 import { fechaChicago } from '@/lib/reloj';
+import { eventosEnVentana } from '@/lib/calendario';
 
 export const maxDuration = 60;
 
@@ -69,6 +70,16 @@ export async function POST(req: NextRequest) {
     const etfDe = (d: string) =>
       d === 'no_operar' ? null : tema ? (d === 'alcista' ? tema.alcista : tema.inverso) : tickers[0];
 
+    const precioDe = (d: string) => {
+      if (d === 'no_operar') return null;
+      const i = tema ? (d === 'alcista' ? 0 : 1) : 0;
+      return (datos as any[])[i]?.precioActual ?? null;
+    };
+
+    // Veto por eventos macro: regla en código, no la deciden las IAs.
+    const ventana = eventosEnVentana(new Date(), idTema, modo === 'accion');
+    const veto = ventana.vetos.length > 0;
+
     const filas = respuestas
       .filter(r => !r.error)
       .map(r => ({
@@ -79,6 +90,7 @@ export async function POST(req: NextRequest) {
         modelo: r.modelo,
         decision: r.decision,
         etf_elegido: etfDe(r.decision),
+        precio_ref: precioDe(r.decision),
         confianza: r.confianza,
         razon: r.razon,
         tokens_in: r.tokens_in,
@@ -91,12 +103,12 @@ export async function POST(req: NextRequest) {
       // Un re-diagnóstico del mismo día reemplaza al anterior que siga pendiente
       await supabase.from('decisiones_ia').delete().eq('fecha', fecha).eq('tema', idTema).eq('resultado', 'pendiente');
       let { error } = await supabase.from('decisiones_ia').insert(filas);
-      if (error && /modelo/i.test(String(error.message))) {
-        // La columna `modelo` aún no existe en Supabase: se guarda sin ella.
-        console.error('Falta la columna modelo en decisiones_ia; guardando sin ella');
+      if (error && /modelo|precio_ref/i.test(String(error.message))) {
+        // Faltan columnas opcionales en Supabase: se guarda sin ellas.
+        console.error('Faltan columnas modelo/precio_ref en decisiones_ia; guardando sin ellas');
         ({ error } = await supabase
           .from('decisiones_ia')
-          .insert(filas.map(({ modelo, ...resto }: any) => resto)));
+          .insert(filas.map(({ modelo, precio_ref, ...resto }: any) => resto)));
       }
       if (error) console.error('Error guardando decisiones:', error);
     }
@@ -105,7 +117,11 @@ export async function POST(req: NextRequest) {
       tema: idTema,
       titulo,
       modo,
-      consenso: { ...consenso, etf: etfDe(consenso.decision) },
+      consenso: veto
+        ? { ...consenso, decision: 'no_operar', etf: null, original: consenso.decision }
+        : { ...consenso, etf: etfDe(consenso.decision) },
+      veto: ventana.vetos.map(e => `${e.nombre} · ${e.fecha} ${e.hora} CT`),
+      avisos: ventana.avisos.map(e => `${e.nombre} · ${e.fecha} ${e.hora} CT`),
       ias: respuestas,
       costoTotal: parseFloat(respuestas.reduce((a, r) => a + r.costo_usd, 0).toFixed(5)),
       sentimiento

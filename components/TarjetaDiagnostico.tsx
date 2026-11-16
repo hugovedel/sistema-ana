@@ -23,6 +23,8 @@ export interface Diagnostico {
   consenso: { decision: 'alcista' | 'inverso' | 'no_operar'; etf: string | null; votos: Record<string, number> };
   ias: IAResp[];
   costoTotal: number;
+  veto?: string[];
+  avisos?: string[];
   error?: string;
 }
 
@@ -74,6 +76,17 @@ export default function TarjetaDiagnostico({ d }: { d: Diagnostico }) {
             </div>
           </div>
         </div>
+
+        {d.veto && d.veto.length > 0 && (
+          <div className="mb-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg p-2">
+            VETO automático (no operar): {d.veto.join('; ')}
+          </div>
+        )}
+        {d.avisos && d.avisos.length > 0 && (
+          <div className="mb-3 text-xs bg-amber-50 text-amber-700 border border-amber-200 rounded-lg p-2">
+            Aviso: {d.avisos.join('; ')}
+          </div>
+        )}
 
         <div className="space-y-2">
           {d.ias.map(r => (
